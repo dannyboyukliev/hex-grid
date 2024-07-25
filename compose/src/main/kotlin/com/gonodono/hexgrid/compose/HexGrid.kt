@@ -5,6 +5,7 @@ import androidx.compose.foundation.shape.GenericShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.key
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
@@ -14,6 +15,7 @@ import androidx.compose.ui.graphics.asAndroidPath
 import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.layout.Placeable
 import androidx.compose.ui.layout.SubcomposeLayout
 import androidx.compose.ui.platform.LocalDensity
@@ -90,16 +92,25 @@ fun HexGrid(
 
     val scope = remember(density) { HexGridItemScopeImpl(gridUi, density) }
 
-    SubcomposeLayout(
-        modifier
-            .drawBehind {
-                if (clipToBounds) {
-                    clipRect { gridUi.drawGrid(drawContext.canvas.nativeCanvas) }
-                } else {
-                    gridUi.drawGrid(drawContext.canvas.nativeCanvas)
+    Layout(
+        content = {
+            if (cellItems != null) {
+                grid.addresses.forEach { address ->
+                    key(address) {
+                        scope.prepare(address)
+                        scope.cellItems(address)
+                    }
                 }
             }
-    ) { constraints ->
+        },
+        modifier = modifier.drawBehind {
+            if (clipToBounds) {
+                clipRect { gridUi.drawGrid(drawContext.canvas.nativeCanvas) }
+            } else {
+                gridUi.drawGrid(drawContext.canvas.nativeCanvas)
+            }
+        }
+    ) { measurables, constraints ->
 
         val uiSize = gridUi.calculateSize(
             constraints.hasBoundedWidth,
@@ -110,37 +121,29 @@ fun HexGrid(
             constraints.maxHeight
         )
 
-        if (cellItems != null) {
-            val items = mutableListOf<Pair<Placeable, Rect>>()
-
-            items.clear()
-            grid.addresses.forEach { address ->
-                val item = subcompose(address) {
-                    scope.prepare(address)
-                    scope.cellItems(address)
-                }.firstOrNull() ?: return@forEach
-                val bounds = scope.copyBounds()
-                val placeable = item.measure(
-                    Constraints(
-                        maxWidth = bounds.width().toInt(),
-                        maxHeight = bounds.height().toInt()
-                    )
+        val placeables = measurables.map { measurable ->
+            val bounds = scope.copyBounds()
+            val width = bounds.width().toInt().coerceAtLeast(0)
+            val height = bounds.height().toInt().coerceAtLeast(0)
+            measurable.measure(
+                Constraints(
+                    maxWidth = width,
+                    maxHeight = height
                 )
-                items += placeable to bounds
-            }
+            ) to bounds
+        }
 
-            layout(uiSize.width, uiSize.height) {
-                items.forEach { (item, bounds) ->
-                    val x = bounds.left + (bounds.width() - item.width) / 2
-                    val y = bounds.top + (bounds.height() - item.height) / 2
-                    item.place(x.toInt(), y.toInt())
-                }
+        layout(uiSize.width, uiSize.height) {
+            placeables.forEach { (placeable, bounds) ->
+                val x = bounds.left + (bounds.width() - placeable.width) / 2
+                val y = bounds.top + (bounds.height() - placeable.height) / 2
+                placeable.place(x.toInt(), y.toInt())
             }
-        } else {
-            layout(uiSize.width, uiSize.height) {}
         }
     }
 }
+
+
 
 
 /**
