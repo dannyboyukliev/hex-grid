@@ -4,6 +4,7 @@ import android.graphics.Rect
 import androidx.compose.foundation.shape.GenericShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
@@ -58,21 +59,33 @@ fun HexGrid(
     cellItems: @Composable (HexGridItemScope.(Grid.Address) -> Unit)? = null
 ) {
     val density = LocalDensity.current
-    val layoutSpecs =
-        remember(density, fitMode, crossMode, hexOrientation, strokeWidth) {
-            val width = with(density) { strokeWidth.toPx() }
-            LayoutSpecs(fitMode, crossMode, hexOrientation, width)
-        }
+    val layoutSpecs = remember(density, fitMode, crossMode, hexOrientation, strokeWidth) {
+        LayoutSpecs(fitMode, crossMode, hexOrientation, with(density) { strokeWidth.toPx() })
+    }
 
-    val gridUi = remember { GridUi() }
-    gridUi.apply {
-        this.grid = grid
-        this.layoutSpecs = layoutSpecs
-        this.strokeColor = colors.strokeColor.toArgb()
-        this.fillColor = colors.fillColor.toArgb()
-        this.selectColor = colors.selectColor.toArgb()
-        this.indexColor = colors.indexColor.toArgb()
-        this.cellIndices = cellIndices
+    val gridUi = remember {
+        GridUi().apply {
+            this.grid = grid
+            this.layoutSpecs = layoutSpecs
+            this.strokeColor = colors.strokeColor.toArgb()
+            this.fillColor = colors.fillColor.toArgb()
+            this.selectColor = colors.selectColor.toArgb()
+            this.indexColor = colors.indexColor.toArgb()
+            this.cellIndices = cellIndices
+        }
+    }
+
+    // Update gridUi properties only if they change
+    LaunchedEffect(grid, layoutSpecs, colors, cellIndices) {
+        gridUi.apply {
+            this.grid = grid
+            this.layoutSpecs = layoutSpecs
+            this.strokeColor = colors.strokeColor.toArgb()
+            this.fillColor = colors.fillColor.toArgb()
+            this.selectColor = colors.selectColor.toArgb()
+            this.indexColor = colors.indexColor.toArgb()
+            this.cellIndices = cellIndices
+        }
     }
 
     val scope = remember(density) { HexGridItemScopeImpl(gridUi, density) }
@@ -80,8 +93,8 @@ fun HexGrid(
     SubcomposeLayout(
         modifier
             .drawBehind {
-                if (clipToBounds) clipRect {
-                    gridUi.drawGrid(drawContext.canvas.nativeCanvas)
+                if (clipToBounds) {
+                    clipRect { gridUi.drawGrid(drawContext.canvas.nativeCanvas) }
                 } else {
                     gridUi.drawGrid(drawContext.canvas.nativeCanvas)
                 }
@@ -99,6 +112,8 @@ fun HexGrid(
 
         if (cellItems != null) {
             val items = mutableListOf<Pair<Placeable, Rect>>()
+
+            items.clear()
             grid.addresses.forEach { address ->
                 val item = subcompose(address) {
                     scope.prepare(address)
@@ -107,17 +122,18 @@ fun HexGrid(
                 val bounds = scope.copyBounds()
                 val placeable = item.measure(
                     Constraints(
-                        maxWidth = bounds.width(),
-                        maxHeight = bounds.height()
+                        maxWidth = bounds.width().toInt(),
+                        maxHeight = bounds.height().toInt()
                     )
                 )
                 items += placeable to bounds
             }
+
             layout(uiSize.width, uiSize.height) {
                 items.forEach { (item, bounds) ->
                     val x = bounds.left + (bounds.width() - item.width) / 2
                     val y = bounds.top + (bounds.height() - item.height) / 2
-                    item.place(x, y)
+                    item.place(x.toInt(), y.toInt())
                 }
             }
         } else {
@@ -125,6 +141,7 @@ fun HexGrid(
         }
     }
 }
+
 
 /**
  * Child Composable scope for [HexGrid].
