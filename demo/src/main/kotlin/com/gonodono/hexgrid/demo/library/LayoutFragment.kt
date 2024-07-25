@@ -147,10 +147,6 @@ private fun LayoutHexGrid(
         grid = immutableGrid,
         crossMode = crossMode,
         colors = HexGridDefaults.colors(strokeColor = strokeColor),
-        onGridTap = { address ->
-            immutableGrid.toggle(address)
-            showStats(immutableGrid)
-        }
     ) { address ->
         val color = when {
             showBackgrounds -> colorFor(address)

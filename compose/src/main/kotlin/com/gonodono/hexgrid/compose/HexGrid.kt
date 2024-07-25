@@ -1,7 +1,6 @@
 package com.gonodono.hexgrid.compose
 
 import android.graphics.Rect
-import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.shape.GenericShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
@@ -14,7 +13,6 @@ import androidx.compose.ui.graphics.asAndroidPath
 import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.graphics.toArgb
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.Placeable
 import androidx.compose.ui.layout.SubcomposeLayout
 import androidx.compose.ui.platform.LocalDensity
@@ -57,8 +55,6 @@ fun HexGrid(
     colors: HexGridColors = HexGridDefaults.colors(),
     clipToBounds: Boolean = true,
     cellIndices: Lines = Lines.None,
-    onGridTap: ((Grid.Address) -> Unit)? = null,
-    onOutsideTap: (() -> Unit)? = null,
     cellItems: @Composable (HexGridItemScope.(Grid.Address) -> Unit)? = null
 ) {
     val density = LocalDensity.current
@@ -88,15 +84,6 @@ fun HexGrid(
                     gridUi.drawGrid(drawContext.canvas.nativeCanvas)
                 } else {
                     gridUi.drawGrid(drawContext.canvas.nativeCanvas)
-                }
-            }
-            .pointerInput(Unit) {
-                detectTapGestures { offset ->
-                    val address = gridUi.resolveAddress(offset.x, offset.y)
-                    when (address) {
-                        null -> onOutsideTap?.invoke()
-                        else -> onGridTap?.invoke(address)
-                    }
                 }
             }
     ) { constraints ->

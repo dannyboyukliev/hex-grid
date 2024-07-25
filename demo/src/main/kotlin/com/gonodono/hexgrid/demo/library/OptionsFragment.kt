@@ -232,8 +232,6 @@ private fun GridHexGrid(
             ComposeColor(state.indexColor)
         ),
         cellIndices = state.cellIndices,
-        onGridTap = { model.toggleSelected(it) },
-        onOutsideTap = onOutsideTap
     )
 }
 
